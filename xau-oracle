@@ -1,0 +1,255 @@
+{
+  "versionCode": 1,
+  "versionName": "1.0.0"
+}
+
+node_modules/
+android/
+.DS_Store
+
+{
+  "name": "xau-oracle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "XAU Oracle — analyste institutionnel XAUUSD, packagé en app Android via Capacitor.",
+  "scripts": {
+    "android:add": "cap add android",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/android": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}
+
+{
+  "appId": "com.xauoracle.app",
+  "appName": "XAU Oracle",
+  "webDir": "www",
+  "backgroundColor": "#0A0A0B",
+  "android": {
+    "allowMixedContent": false
+  }
+}
+
+# XAU Oracle — générer et installer l'APK Android
+
+Ce projet contient une web app autonome (dossier `www/`) + un projet Capacitor qui
+l'enveloppe en app Android. La compilation se fait **dans le cloud via GitHub Actions**,
+gratuitement, sans installer Android Studio.
+
+## 1. Créer un dépôt GitHub
+
+1. Va sur https://github.com/new, crée un dépôt (public ou privé, peu importe), par ex. `xau-oracle`.
+2. Sur ton ordinateur, dans le dossier de ce projet :
+   ```bash
+   git init
+   git add .
+   git commit -m "XAU Oracle"
+   git branch -M main
+   git remote add origin https://github.com/TON-PSEUDO/xau-oracle.git
+   git push -u origin main
+   ```
+   (Pas besoin de Git en ligne de commande : tu peux aussi glisser-déposer tous les
+   fichiers du dossier directement sur la page du dépôt GitHub, via "Add file → Upload files".)
+
+## 2. Lancer la compilation
+
+1. Sur la page GitHub du dépôt, va dans l'onglet **Actions**.
+2. Le workflow "Build Android APK" se lance automatiquement après le push. Sinon,
+   clique dessus puis **Run workflow**.
+3. Attends 2-4 minutes que le build passe au vert ✅.
+
+## 3. Récupérer l'APK
+
+1. Toujours dans **Actions**, clique sur le run terminé.
+2. En bas de la page, section **Artifacts** → télécharge `xau-oracle-debug-apk` (fichier .zip).
+3. Dézippe : tu obtiens `app-debug.apk`.
+
+## 4. Installer sur ton téléphone Android
+
+1. Transfère `app-debug.apk` sur ton téléphone (câble, Google Drive, WhatsApp à toi-même, etc.).
+2. Ouvre le fichier depuis ton téléphone. Android va demander d'autoriser
+   "Installer des apps inconnues" pour l'app que tu utilises (Fichiers, Chrome…) —
+   accepte, c'est normal pour un APK qui ne vient pas du Play Store.
+3. Installe. L'icône **XAU Oracle** apparaît sur ton écran d'accueil.
+
+## 5. Première ouverture
+
+1. Va dans l'onglet **Plus** de l'app.
+2. Colle ta propre clé API Anthropic (créée sur https://console.anthropic.com) dans
+   le champ "Clé API Anthropic", puis **Enregistrer la clé**.
+3. Elle reste stockée uniquement sur ton téléphone. L'usage de l'API est facturé sur
+   ton compte Anthropic — pas de coût côté Anthropic Claude.ai.
+
+## Mettre à jour l'app plus tard
+
+Modifie les fichiers dans `www/`, refais un `git push`, GitHub Actions recompile
+automatiquement un nouvel APK à télécharger.
+
+## Notes
+
+- Le workflow "debug" produit un APK non signé (mode release Play Store), utile
+  pour tester rapidement. Pour le Play Store, utilise la procédure ci-dessous.
+- Cette app n'est pas un conseil financier. Les analyses générées dépendent
+  entièrement de la capture d'écran fournie ; elles ne remplacent pas ton propre
+  jugement ni une gestion du risque rigoureuse.
+
+---
+
+## 7. Le robot MT5 (trading automatique) + le serveur de licence
+
+⚠️ **À lire avant de brancher un compte réel** : le fichier `ea/XAU_Oracle_EA.mq5`
+trade automatiquement selon des règles programmatiques (structure, order blocks,
+FVG). Ce n'est ni un conseil financier ni une garantie de gain — teste-le
+**uniquement en compte démo pendant plusieurs semaines**, dans le Strategy Tester
+de MT5, avant même d'envisager un compte réel avec de petites sommes.
+
+### A. Déployer le serveur de licence
+
+Dossier `license-server/`. Déploiement le plus simple : Railway, Render ou tout
+VPS avec Node.js.
+
+```bash
+cd license-server
+npm install
+cp .env.example .env   # édite ADMIN_TOKEN avec une longue chaîne aléatoire
+npm start
+```
+
+Sur un hébergeur (Railway/Render) : connecte le dépôt, définis la variable
+d'environnement `ADMIN_TOKEN`, déploie. Tu obtiens une URL publique HTTPS,
+par ex. `https://xau-oracle-license.up.railway.app`.
+
+### B. Créer une clé de licence
+
+En local ou en te connectant au serveur déployé :
+```bash
+node scripts/add-license.js "Mon compte" 2 2026-12-31
+```
+`2` = nombre max d'appareils liés à cette clé (compte 1 pour le téléphone Android
++ 1 pour l'EA MT5). `2026-12-31` = date d'expiration (facultatif, omets pour
+une licence sans expiration).
+
+`node scripts/list-licenses.js` liste toutes les licences et appareils liés.
+`node scripts/revoke-license.js <clé>` révoque une licence.
+
+### C. Installer l'EA dans MT5
+
+1. Ouvre MT5 → **Fichier → Ouvrir le dossier des données** → `MQL5/Experts/`.
+2. Copie `ea/XAU_Oracle_EA.mq5` dans ce dossier.
+3. Dans MT5 : **Outils → Options → Expert Advisors** → coche "Autoriser
+   WebRequest pour les URL suivantes" → ajoute l'URL de ton serveur de licence
+   (ex. `https://xau-oracle-license.up.railway.app`), les deux : celle de
+   `/api/validate` et celle de `/api/trades/report` (même domaine, donc une
+   seule entrée suffit si c'est le même serveur).
+4. Dans le **Navigateur** MT5 (Ctrl+N) → Experts → double-clique sur
+   `XAU_Oracle_EA` → glisse-le sur un graphique **XAUUSD**.
+5. Dans les paramètres de l'EA, renseigne :
+   - `LicenseServerURL` = `https://ton-serveur/api/validate`
+   - `TradesReportURL` = `https://ton-serveur/api/trades/report`
+   - `LicenseKey` = la clé générée à l'étape B
+   - Ajuste `RiskPercent`, `MinRR`, etc. selon ta tolérance au risque.
+6. Active **AutoTrading** (bouton en haut de MT5). Si la licence est invalide,
+   l'EA l'indique dans l'onglet **Experts** des logs — aucun trade ne sera passé.
+
+### D. Connecter l'app Android
+
+Dans l'app, à l'écran de connexion (ou onglet **Plus**), renseigne la **même**
+clé de licence et l'URL du même serveur. L'onglet **Robot** affiche alors les
+trades que l'EA remonte automatiquement — en lecture seule (l'app ne pilote
+jamais MT5, elle ne fait qu'afficher son activité).
+
+### E. Limites connues (honnêtes)
+
+- La détection de structure/order block de l'EA est une heuristique simplifiée,
+  pas une reproduction exacte du raisonnement d'un analyste humain — à affiner
+  et backtester avant tout usage réel.
+- `WebRequest` dans MT5 est bloquant et a un timeout ; en cas de coupure réseau
+  côté serveur de licence, l'EA refusera simplement de trader jusqu'à la
+  prochaine vérification réussie (par sécurité, pas par bug).
+- Le remontée de trades vers le serveur est "best-effort" : si elle échoue,
+  l'EA continue de trader normalement, seul l'affichage dans l'app sera en retard.
+
+---
+
+## 6. Publier sur le Google Play Store
+
+### A. Ajouter les secrets de signature à GitHub
+
+Un fichier `xau-oracle-release.keystore.b64` et `KEYSTORE_CREDENTIALS.txt` t'ont été
+fournis séparément (jamais dans ce zip — garde-les à part et ne les commite jamais
+dans le dépôt Git).
+
+Sur GitHub : dépôt → **Settings → Secrets and variables → Actions → New repository secret**.
+Crée ces 4 secrets :
+
+| Nom du secret       | Valeur                                                        |
+|----------------------|----------------------------------------------------------------|
+| `KEYSTORE_BASE64`    | Colle tout le contenu de `xau-oracle-release.keystore.b64`     |
+| `KEYSTORE_PASSWORD`  | Valeur `KEYSTORE_PASSWORD` de `KEYSTORE_CREDENTIALS.txt`        |
+| `KEY_ALIAS`          | `xauoracle`                                                     |
+| `KEY_PASSWORD`       | Valeur `KEY_PASSWORD` de `KEYSTORE_CREDENTIALS.txt`             |
+
+⚠️ Si tu perds ce keystore ou ces mots de passe, tu ne pourras plus jamais
+mettre à jour l'app une fois publiée sous ce listing Play Store — il faudrait
+créer une toute nouvelle fiche. Sauvegarde `KEYSTORE_CREDENTIALS.txt` et le
+`.keystore.b64` dans un gestionnaire de mots de passe ou un coffre-fort numérique.
+
+### B. Compiler la version release signée
+
+1. Dépôt GitHub → onglet **Actions** → workflow "Build Android app" → **Run workflow**.
+2. Coche **"Compiler aussi la version release signée"** → Run.
+3. À la fin (job `release` vert ✅), télécharge dans **Artifacts** :
+   - `xau-oracle-release-aab` → **c'est ce fichier `.aab` qu'il faut uploader sur le Play Store.**
+   - `xau-oracle-release-apk` → un APK signé, utile pour tester l'exact build release sur ton téléphone avant publication.
+
+### C. Créer le compte développeur Google Play
+
+1. Va sur https://play.google.com/console/signup, paie les frais uniques de 25 USD.
+2. Crée une nouvelle application : nom "XAU Oracle", type "Application", gratuite.
+
+### D. Politique de confidentialité (obligatoire)
+
+Google exige une URL publique de politique de confidentialité.
+
+1. Complète les deux champs `<!-- METTRE ... -->` dans `privacy/index.html`
+   (date, email de contact).
+2. Le plus simple pour l'héberger gratuitement : dépôt GitHub → **Settings → Pages**
+   → Source: branche `main`, dossier `/privacy` (ou déplace ce fichier vers un dépôt
+   dédié) → GitHub te donne une URL du type
+   `https://TON-PSEUDO.github.io/xau-oracle/`.
+3. Colle cette URL dans Play Console → **Présence sur le Store → Détails de l'application
+   → Politique de confidentialité**.
+
+### E. Remplir la fiche Play Store
+
+Dans Play Console, section **Présence sur le Store** :
+- Description courte / longue, catégorie (Finance), icône 512×512 (dans `www/icons/icon-512.png`),
+  captures d'écran du téléphone (fais 2-3 captures de l'app en fonctionnement).
+- **Classification du contenu** : questionnaire standard (pas de contenu sensible).
+- **Public cible** : 18 ans et plus (contenu financier).
+- **Sécurité des données** ("Data safety") : déclare que l'app envoie des images et
+  du texte à un service tiers (API Anthropic) pour fournir la fonctionnalité
+  principale, qu'aucune donnée n'est collectée par le développeur, et que la clé
+  API et l'historique restent uniquement en stockage local sur l'appareil.
+
+### F. Publier
+
+1. Section **Production** (ou commence par **Test interne** pour essayer avant) →
+   **Créer une release** → uploade le fichier `.aab` téléchargé à l'étape B.
+2. Remplis les notes de version, soumets.
+3. Google fait une revue (souvent 1 à 3 jours pour une première soumission) puis
+   l'app devient publique.
+
+### G. Publier une mise à jour plus tard
+
+1. Édite `android-version.json` : incrémente `versionCode` (ex. `2`) et change
+   `versionName` (ex. `"1.0.1"`).
+2. Commit + push.
+3. Relance le workflow avec "Compiler aussi la version release" coché.
+4. Uploade le nouvel `.aab` dans Play Console → nouvelle release.
