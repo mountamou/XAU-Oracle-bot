@@ -1,0 +1,93 @@
+name: Build XAU ORACLE APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:   # Permet de lancer le build manuellement depuis l'onglet Actions
+
+jobs:
+  build-android:
+    name: Compiler l'APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generer l'icone XAU ORACLE
+        run: |
+          pip install pillow
+          python tools/generate_icon.py
+
+      - name: Compiler l'APK avec Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+
+      - name: Publier l'APK (telechargeable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: XAU-ORACLE-apk
+          path: ${{ steps.buildozer.outputs.filename }}
+          if-no-files-found: error
+
+name: Build XAU ORACLE APK (Signe / Release)
+
+# Ce workflow produit un APK SIGNE (pret pour distribution / Play Store).
+# Il ne se lance QUE manuellement, et uniquement si les secrets de signature
+# sont configures (voir GUIDE_APK.md, section "APK signe").
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    name: Compiler et signer l'APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generer l'icone XAU ORACLE
+        run: |
+          pip install pillow
+          python tools/generate_icon.py
+
+      - name: Compiler l'APK release (non signe)
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android release
+          buildozer_version: stable
+
+      - name: Signer l'APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign
+        with:
+          releaseDirectory: bin
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Publier l'APK signe
+        uses: actions/upload-artifact@v4
+        with:
+          name: XAU-ORACLE-apk-signe
+          path: ${{ steps.sign.outputs.signedReleaseFile }}
+          if-no-files-found: error
